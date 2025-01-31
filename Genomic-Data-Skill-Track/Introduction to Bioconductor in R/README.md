@@ -31,67 +31,31 @@ A genome consists of:
 
 ### Data Structure: Genome Organization
 
-Think of a genome's organization like this:
-
-1. **Chromosomes**: Like separate files in a database
-   - Each chromosome is a continuous sequence
-   - Different organisms have different numbers of chromosomes
-   - In humans: 23 pairs of chromosomes (46 total)
-
-2. **Genes**: The "records" we're often trying to find
-   - Specific sequences that code for proteins
-   - Have start and stop signals (like delimiters in text)
-   - Can be on either strand of DNA (forward or reverse)
-
-3. **Data Flow**: The Central Dogma of Biology
-   ```
-   DNA → RNA → Protein
-   (storage) (intermediate) (functional molecule)
-   ```
-   This is similar to an ETL pipeline:
-   - DNA is like source data
-   - RNA is like transformed intermediate data
-   - Proteins are the final "output"
-
+| Component | Data Analogy | Key Characteristics |
+|-----------|--------------|-------------------|
+| **Chromosomes** | Files in a database | • Continuous sequence of DNA<br>• Number varies by organism<br>• Humans have 23 chromosome pairs (46 total) |
+| **Genes** | Database records | • Specific protein-coding sequences<br>• Contains start/stop signals (like delimiters)<br>• Can be on either DNA strand (bidirectional) |
+| **Data Flow** | ETL pipeline | **DNA** → **RNA** → **Protein**<br>*(storage) → (intermediate) → (final product)*<br>• DNA = source data<br>• RNA = transformed intermediate<br>• Proteins = final output |
 ### Why This Matters for Analysis
 
-When working with genomic data, you'll often need to:
-1. **Find Patterns**: Like regex for DNA
-   - Finding genes in a sequence
-   - Identifying regulatory regions
-   - Detecting mutations
+When working with genomic data, you'll need to handle these key aspects:
 
-2. **Transform Data**: Between different formats
-   - DNA to RNA conversion
-   - RNA to protein translation
-   - Reverse complementing sequences
-
-3. **Handle Scale**: Efficient data structures
-   - Human genome: ~3 billion characters
-   - Must handle both whole genomes and subsequences
-   - Need to search in both directions
-
+| Operation Type | Analogy | Common Tasks |
+|---------------|---------|--------------|
+| **Pattern Finding** | Like regex for DNA | • Finding genes in sequences<br>• Identifying regulatory regions<br>• Detecting mutations |
+| **Data Transformation** | Like ETL pipeline stages | • DNA to RNA conversion<br>• RNA to protein translation<br>• Reverse complementing sequences |
+| **Scale Management** | Like big data processing | • Working with 3B+ character sequences<br>• Managing whole genomes and subsequences<br>• Bidirectional sequence searching |
 ## Installation and Understanding BSgenome
 
 ### Why Special Genome Containers?
 
 Before diving into installation, let's understand why we need specialized genome containers:
 
-1. **Size and Efficiency**
-   - A human genome has ~3 billion base pairs
-   - Regular R strings would be memory-inefficient
-   - Need random access to specific regions without loading entire sequence
-
-2. **Biological Constraints**
-   - Like having a validated enum in programming
-   - Only certain characters are valid (ATGC for DNA)
-   - Built-in checks prevent invalid sequences
-
-3. **Common Operations**
-   - Finding reverse complements (like A↔T, G↔C pairing)
-   - Extracting subsequences (like getting specific genes)
-   - These are optimized in specialized containers
-
+| Requirement | Why It Matters | Examples |
+|-------------|----------------|-----------|
+| **Size and Efficiency** | Genomic data is massive and needs efficient handling | • Human genome: ~3 billion base pairs<br>• Need random access without full loading<br>• Regular R strings would be memory-inefficient |
+| **Biological Constraints** | DNA/RNA have strict rules about valid content | • Limited valid characters (ATGC for DNA)<br>• Like validated enums in programming<br>• Built-in validation checks |
+| **Common Operations** | Biological operations need specialized optimization | • Finding reverse complements (A↔T, G↔C)<br>• Extracting subsequences (genes)<br>• Pattern matching with biological rules |
 ### Reference Genomes: Like Standard Datasets
 
 BSgenome provides pre-built genomes, similar to how you might use built-in datasets in R:
@@ -159,18 +123,19 @@ seqlengths(yeast)     # Sequence lengths (like nchar() for each)
 The **Biostrings** package implements algorithms for **fast manipulation of large biological sequences**. It is widely used, with more than 200 Bioconductor packages depending on it.
 
 ### Biological String Containers
-Biological sequences in Biostrings are stored in **memory-efficient containers**, which allow efficient subsetting and pattern matching. The containers include:
-- `BString` – Stores a generic big string.
-- `DNAString` – Stores DNA sequences.
-- `RNAString` – Stores RNA sequences.
-- `AAString` – Stores amino acid sequences.
 
-To store **multiple sequences**, we use **StringSet containers**:
-- `BStringSet`
-- `DNAStringSet`
-- `RNAStringSet`
-- `AAStringSet`
+| Container Type | For Single Sequences | For Multiple Sequences | Purpose |
+|----------------|---------------------|----------------------|----------|
+| **Basic String** | `BString` | `BStringSet` | Generic large string storage |
+| **DNA** | `DNAString` | `DNAStringSet` | DNA sequences (ATGC) |
+| **RNA** | `RNAString` | `RNAStringSet` | RNA sequences (AUGC) |
+| **Amino Acid** | `AAString` | `AAStringSet` | Protein sequences |
 
+All containers are memory-efficient and optimized for:
+- Fast subsetting operations
+- Efficient pattern matching
+- Biological sequence validation
+  
 Think of these as specialized string types with built-in biological rules:
 
 ```r
@@ -309,22 +274,11 @@ reverseComplement(dna_seq)    # Returns: TTACGAGATCAT
 
 ### Why Pattern Matching Matters in Biology
 
-Unlike regular text analysis, pattern matching in genomic data serves specific biological purposes:
-
-1. **Finding Functional Elements**
-   - Start/stop signals for genes
-   - Binding sites for proteins
-   - Regulatory sequences that control gene activity
-
-2. **Identifying Variations**
-   - Mutations in sequences
-   - Genetic variants
-   - Disease-causing changes
-
-3. **Discovering Sequence Motifs**
-   - Repeated patterns with biological function
-   - Evolutionary conserved sequences
-   - Structural elements in DNA/RNA
+| Purpose | What We're Looking For | Why It's Important |
+|---------|----------------------|-------------------|
+| **Finding Functional Elements** | • Start/stop signals for genes<br>• Protein binding sites<br>• Regulatory sequences | Control points where biological<br>activity is initiated or regulated |
+| **Identifying Variations** | • Mutations in sequences<br>• Genetic variants<br>• Disease-causing changes | Understanding differences that<br>can impact biological function |
+| **Discovering Sequence Motifs** | • Repeated functional patterns<br>• Evolutionary conserved sequences<br>• DNA/RNA structural elements | Finding common patterns that<br>indicate important biological roles |
 
 ### Pattern Matching Operations
 
@@ -430,6 +384,146 @@ frames <- DNAStringSet(c(
      max.mismatch = 1
    )
    ```
+
+---
+
+## Working with FASTQ Files
+
+Required packages for this section:
+```r
+library(ShortRead)
+library(tidyverse)  # For data manipulation and plotting
+```
+
+### Understanding FASTQ Files
+FASTQ is the standard format for storing sequence data and quality scores. Each entry has four lines:
+
+```
+@SRR1971253.1 (Sequence identifier)
+ATGCTAGCTGATCG (The actual sequence)
++ (A separator line, sometimes contains the identifier again)
+IIIHGFEDCBA98 (Quality scores encoded as ASCII characters)
+```
+
+The quality scores indicate confidence in each base call (A, T, G, C). This helps identify which parts of the sequences are reliable for analysis.
+
+### Basic FASTQ Operations
+```r
+# Read a FASTQ file
+fqsample <- readFastq(dirPath = "data", pattern = "SRR1971253.fastq")
+
+# Examine basic information
+fqsample  # Shows number of sequences and length
+class(fqsample)  # Should be "ShortReadQ"
+class(sread(fqsample))  # DNAStringSet - specialized for DNA sequences
+id(fqsample)  # Shows sequence identifiers
+```
+
+For large files, working with a subset is useful for initial checks:
+```r
+# Set reproducible sampling
+set.seed(1234)
+
+# Sample 100 reads
+fs <- FastqSampler(con = f, n = 100)
+my_sample <- yield(fs)
+```
+
+### Quality Assessment and Control
+
+Quality scores indicate how reliable each base call is:
+- Q10: 1 error per 10 bases
+- Q20: 1 error per 100 bases 
+- Q30: 1 error per 1000 bases
+
+```r
+# Check base quality scores
+quality(fqsample)  # Shows encoded quality for each base
+
+# Identify encoding scheme used 
+encoding(quality(fqsample))  # Different machines use different encodings
+
+# Get quality summary statistics
+qaSummary[['baseQuality']]  
+```
+
+Check the distribution of bases (A, T, G, C) at each position:
+```r
+# Count bases at each position
+abc <- alphabetByCycle(sread(fqsample))
+
+# Prepare for plotting
+nucByCycle <- t(abc[1:4,]) %>%
+    as_tibble() %>%
+    mutate(cycle = 1:50)
+
+# Visualize base distributions
+ggplot(
+    pivot_longer(nucByCycle, -cycle, 
+                 names_to = "alphabet", 
+                 values_to = "count"),
+    aes(x = cycle, y = count, color = alphabet)
+) +
+    geom_line(size = 0.5) +
+    labs(y = "Frequency",
+         title = "Base Distribution by Position") +
+    theme_bw() +
+    theme(panel.grid.major.x = element_blank())
+```
+
+| Analysis Step | What We're Checking | Why It Matters | Warning Signs |
+|--------------|---------------------|----------------|---------------|
+| Quality Scores | Reliability of base calls | Determines which reads are trustworthy | Many scores below Q20 |
+| Base Distribution | Balance of A,T,G,C at each position | Shows potential sequencing problems | Sudden spikes or drops |
+| Read Length | Size of sequences | Short reads might be incomplete | Unexpected variation in length |
+| Duplicates | Repeated sequences | Could be from PCR amplification | High percentage of duplicates |
+
+### Common Issues and Solutions
+
+| Issue | What It Is | How to Handle |
+|-------|------------|---------------|
+| Memory Usage | Large files exceed RAM | Use `FastqStreamer` for chunk processing |
+| Quality Encoding | Different scoring systems | Check with `encoding()` |
+| Length Variation | Inconsistent read sizes | Filter/trim with `narrow()` |
+| End Quality | Lower quality at sequence ends | Trim ends if needed |
+| Duplicates | Repeated sequences | Use `srduplicated()` to identify |
+
+### Processing and Filtering
+
+Filter out low-quality reads:
+```r
+# Remove low quality reads
+qf <- srFilter(function(x) {
+    quals <- as(quality(x), "matrix")
+    rowMeans(quals) >= 20  # Keep higher quality reads
+})
+filtered_reads <- fqsample[qf(fqsample)]
+```
+
+Handle duplicate reads:
+```r
+# Check for duplicates
+table(srduplicated(fqsample))  # See how many duplicates exist
+
+# Remove duplicates if needed
+unique_reads <- fqsample[!srduplicated(fqsample)]
+```
+
+Save processed data:
+```r
+# Save filtered data with compression
+writeFastq(filtered_reads, file = "filtered_data.fastq.gz")
+```
+
+### Next Steps
+
+After quality control and filtering, the data is ready for:
+- Alignment to reference sequences
+- Assembly into longer sequences
+- Variant identification
+- Expression analysis
+
+Each of these analyses has specialized packages and workflows in Bioconductor.
 
 ---
 
