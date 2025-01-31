@@ -17,12 +17,15 @@ A **genome** is the complete set of DNA in an organism, encoded in a four-letter
 - **C (Cytosine)**  
 
 ### **Genome Structure**
+
 A genome consists of:
 - **Chromosomes** – Large DNA structures containing genes.
 - **Genes** – Segments of DNA that code for proteins (some are non-coding but still have functions).
 - **Proteins** – Molecules responsible for cellular functions, produced through:
   1. **Transcription**: DNA → RNA
   2. **Translation**: RNA → Protein
+
+![DNA-Split](images/DNA-Transcription-Translation.png)
 
  --- 
 
@@ -99,7 +102,8 @@ length(yeast)    # Returns: 17
 names(yeast)     # Returns: c("chrI", "chrII", "chrIII", ..., "chrM")
 
 # Retrieve chromosome lengths (number of DNA base pairs)
-seqlengths(yeast)    # Returns named vector: c(chrI = 230218, chrII = 813184, chrIII = 316620, ..., chrM = 85779)
+seqlengths(yeast)    # Returns named vector: c(chrI = 230218,
+                     #          chrII = 813184, chrIII = 316620, ..., chrM = 85779)
 ```
 
 ### **Extracting DNA Sequences**
@@ -194,28 +198,133 @@ aa_seq               # Returns: 4-letter AAString object
                      # seq: MIS*
 
 # Shortcut: DNA to Amino Acids
-translate(dna_seq)   # Returns: 4-letter AAString object
-                     # seq: MIS*
+translate(dna_seq)
 ```
 
 ---
 
 ## **Sequence Manipulation Functions**
 
+### **Understanding Single Sequences vs. Sets**
+
+Biostrings provides two main ways to work with sequences:
+- **Single Sequences** (`XString` objects): Hold one sequence of a predefined alphabet
+- **Sets** (`StringSet` objects): Store multiple sequences that can have varying lengths
+
+The choice between single sequences and sets affects which functions are available and how sequence lengths are reported.
+
+### **Converting Between Single Sequences and Sets**
+
+#### From Set to Single Sequence
 ```r
-# Complement DNA sequence
-a_seq <- DNAString("ATGATCTCGTAA")
-complement(a_seq)    # Returns: 12-letter DNAString object
-                     # seq: TACTAGAGCATT
+# Read a sequence file into a StringSet
+zikaVirus <- readDNAStringSet("data/zika.fa")
+length(zikaVirus)    # Returns: 1 (number of sequences in set)
+width(zikaVirus)     # Returns: 10794 (number of bases in sequence)
+
+# Convert StringSet to single sequence
+zikaVirus_seq <- unlist(zikaVirus)    # Creates a DNAString
+length(zikaVirus_seq)  # Returns: 10794 (length of single sequence)
+```
+
+Note the difference between `length()` and `width()`:
+- For sets: `length()` gives number of sequences, `width()` gives sequence lengths
+- For single sequences: only `length()` is applicable, giving sequence length
+
+#### From Single Sequence to Set
+```r
+# Create a set with multiple subsequences
+zikaSet <- DNAStringSet(zikaVirus_seq, 
+                       start = c(1, 101, 201),    # Starting positions
+                       end = c(100, 200, 300))    # Ending positions
+# Creates a set with three 100-base sequences
+length(zikaSet)     # Returns: 3 (number of sequences)
+width(zikaSet)      # Returns: c(100, 100, 100) (length of each sequence)
+```
+
+### **Sequence Manipulation Operations**
+
+#### DNA Strand Operations
+DNA naturally exists as two complementary strands (A pairs with T, G pairs with C). Biostrings efficiently stores just one strand and can computationally derive the other when needed:
+
+```r
+# Create a DNA sequence
+dna_seq <- DNAString("ATGATCTCGTAA")
+
+# Get complementary sequence (A↔T, G↔C)
+complement(dna_seq)    # Returns: TACTAGAGCATT
 
 # Reverse a sequence
-reverse(a_seq)       # Returns: 12-letter DNAString object
-                     # seq: AATGCTCTAGTA
+reverse(dna_seq)       # Returns: AATGCTCTAGTA
 
-# Reverse complement
-a_seq_revcomp <- reverseComplement(a_seq)
-a_seq_revcomp       # Returns: 12-letter DNAString object
-                    # seq: TTACGAGATCAT
+# Reverse complement (common operation in molecular biology)
+reverseComplement(dna_seq)    # Returns: TTACGAGATCAT
+```
+
+#### Working with Sets
+```r
+# Create a short set for demonstration
+shortSet <- DNAStringSet(c(
+  seq1 = "AGCTCGTAGCTAGCTAG",
+  seq2 = "CGATCGATCGATCGATC"
+))
+
+# Reorder sequences in set (top to bottom)
+rev(shortSet)    # Returns set with seq2 first, then seq1
+
+# Reverse each sequence (right to left)
+reverse(shortSet)    # Returns set with reversed sequences
+
+# Get complement of all sequences in set
+complement(shortSet)  # Returns complementary sequences for entire set
+```
+
+### **Function Summary Table**
+
+| Function | Description | Single Sequence | Set |
+|----------|-------------|-----------------|-----|
+| `length()` | Returns sequence length or number of sequences in set | Yes (sequence length) | Yes (number of sequences) |
+| `width()` | Number of characters per sequence | No | Yes |
+| `unlist()` | Collates set elements into single sequence | No | Yes |
+| `complement()` | Returns paired DNA strand | Yes | Yes |
+| `rev()` | Reorders sequences (bottom to top) for sets; same as reverse() for single | Yes | Yes |
+| `reverse()` | Changes sequence order (right to left) | Yes | Yes |
+| `reverseComplement()` | Combines reverse and complement operations efficiently | Yes | Yes |
+
+### **Performance and Best Practices**
+
+1. **Use `reverseComplement()` for Efficiency**
+   - When you need both operations, use `reverseComplement()` instead of separate `reverse()` and `complement()`
+   - This is particularly important for large sequences as it's optimized for memory and speed
+
+2. **Choosing Between Single Sequences and Sets**
+   - Use single sequences when working with one continuous sequence
+   - Use sets when you need to:
+     - Store multiple related sequences
+     - Break a sequence into chunks for parallel processing
+     - Compare multiple sequence variants
+
+3. **Memory Considerations**
+   - StringSets can hold sequences of different lengths
+   - For very large sequences, work with subsequences using `subseq()` to manage memory
+   - Use `width()` to check sequence lengths before operations that might be memory-intensive
+
+### **Practical Examples**
+
+```r
+# Extract and analyze a subsequence
+short_seq <- subseq(zikaVirus_seq, end = 21)
+
+# Transcribe DNA to RNA
+rna_seq <- RNAString(short_seq)
+
+# Translate RNA to amino acids
+aa_seq <- translate(rna_seq)
+
+# Create a set of overlapping sequences
+overlap_set <- DNAStringSet(zikaVirus_seq, 
+                          start = seq(1, 100, by = 10),
+                          width = 20)
 ```
 
 ---
