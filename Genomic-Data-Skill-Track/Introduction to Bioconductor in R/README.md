@@ -457,18 +457,15 @@ nucByCycle <- t(abc[1:4,]) %>%
     as_tibble() %>%
     mutate(cycle = 1:50)
 
-# Visualize base distributions
-ggplot(
-    pivot_longer(nucByCycle, -cycle, 
-                 names_to = "alphabet", 
-                 values_to = "count"),
-    aes(x = cycle, y = count, color = alphabet)
-) +
-    geom_line(size = 0.5) +
-    labs(y = "Frequency",
-         title = "Base Distribution by Position") +
-    theme_bw() +
-    theme(panel.grid.major.x = element_blank())
+# Visualize base distributions ()
+nucByCycle %>% 
+  # Gather the nucleotide letters in alphabet and get a new count column
+  pivot_longer(-cycle, names_to = "alphabet", values_to = "count") %>% 
+  ggplot(aes(x = cycle, y =  count, color = alphabet)) +
+  geom_line(size = 0.5 ) +
+  labs(y = "Frequency") +
+  theme_bw() +
+  theme(panel.grid.major.x = element_blank())
 ```
 
 | Analysis Step | What We're Checking | Why It Matters | Warning Signs |
@@ -477,16 +474,6 @@ ggplot(
 | Base Distribution | Balance of A,T,G,C at each position | Shows potential sequencing problems | Sudden spikes or drops |
 | Read Length | Size of sequences | Short reads might be incomplete | Unexpected variation in length |
 | Duplicates | Repeated sequences | Could be from PCR amplification | High percentage of duplicates |
-
-### Common Issues and Solutions
-
-| Issue | What It Is | How to Handle |
-|-------|------------|---------------|
-| Memory Usage | Large files exceed RAM | Use `FastqStreamer` for chunk processing |
-| Quality Encoding | Different scoring systems | Check with `encoding()` |
-| Length Variation | Inconsistent read sizes | Filter/trim with `narrow()` |
-| End Quality | Lower quality at sequence ends | Trim ends if needed |
-| Duplicates | Repeated sequences | Use `srduplicated()` to identify |
 
 ### Processing and Filtering
 
@@ -514,6 +501,16 @@ Save processed data:
 # Save filtered data with compression
 writeFastq(filtered_reads, file = "filtered_data.fastq.gz")
 ```
+
+### Common Issues and Solutions
+
+| Issue | What It Is | How to Handle |
+|-------|------------|---------------|
+| Memory Usage | Large files exceed RAM | Use `FastqStreamer` for chunk processing |
+| Quality Encoding | Different scoring systems | Check with `encoding()` |
+| Length Variation | Inconsistent read sizes | Filter/trim with `narrow()` |
+| End Quality | Lower quality at sequence ends | Trim ends if needed |
+| Duplicates | Repeated sequences | Use `srduplicated()` to identify |
 
 ### Next Steps
 
