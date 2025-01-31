@@ -387,6 +387,222 @@ frames <- DNAStringSet(c(
 
 ---
 
+## Working with Sequence Ranges
+
+### Understanding IRanges
+
+IRanges provides the fundamental infrastructure for manipulating intervals of sequences in Bioconductor. These ranges are hierarchical data structures that can contain metadata.
+
+```r
+# Load the package
+library(IRanges)
+
+# Create a basic range
+myIRanges <- IRanges(start = 20, end = 30)
+myIRanges
+# IRanges object with 1 range and 0 metadata columns:
+#    start       end     width 
+# <integer> <integer> <integer> 
+# [1]   20        30        11
+```
+
+#### Multiple Ways to Define Ranges
+
+```r
+# Using start and width
+(myIRanges_width <- IRanges(start = c(1, 20), width = c(30, 11)))
+# IRanges object with 2 ranges and 0 metadata columns:
+#         start       end     width     
+#      <integer> <integer> <integer> 
+# [1]         1        30        30        
+# [2]        20        30        11
+
+# Using start and end
+(myIRanges_end <- IRanges(start = c(1, 20), end = 30))
+# IRanges object with 2 ranges and 0 metadata columns:
+#         start       end     width     
+#      <integer> <integer> <integer> 
+# [1]         1        30        30        
+# [2]        20        30        11
+```
+
+**Key Equation:** `width = end - start + 1`
+
+### Run Length Encoding (Rle)
+
+Rle (Run Length Encoding) is a general S4 container used to save long repetitive vectors efficiently. It computes and stores the lengths and values of a vector or factor.
+
+```r
+# Create vector with repeating values
+(some_numbers <- c(3, 2, 2, 2, 3, 3, 4, 2))
+# [1] 3 2 2 2 3 3 4 2
+
+# Convert to Rle for efficient storage
+(Rle(some_numbers))
+# numeric-Rle of length 8 with 5 runs 
+# Lengths: 1 3 2 1 1 
+# Values : 3 2 3 4 2 
+```
+
+### Working with Logical Vectors and Rle
+
+```r
+# Create range from logical vector
+IRanges(start = c(FALSE, FALSE, TRUE, TRUE))
+# IRanges object with 1 range and 0 metadata columns:
+#       start       end     width 
+#   <integer> <integer> <integer> 
+# [1]       3         4         2 
+
+# Create and use logical Rle
+gi <- c(TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE)
+myRle <- Rle(gi)
+# logical-Rle of length 7 with 3 runs
+# Lengths: 2 2 3
+# Values : TRUE FALSE TRUE
+
+IRanges(start = myRle)
+# IRanges object with 2 ranges and 0 metadata columns:
+#         start       end     width 
+#      <integer> <integer> <integer> 
+# [1]         1         2         2 
+# [2]         5         7         3
+```
+
+### Working with Genomic Ranges (GRanges)
+
+GRanges extends IRanges by adding chromosomal context. It's specifically designed for storing genomic intervals by chromosome.
+
+```r
+library(GenomicRanges)
+
+# Create a basic GRanges object
+(myGR <- GRanges("chr1:200-300"))
+# GRanges object with 1 range and 0 metadata columns:
+#   seqnames     ranges strand 
+#      <Rle>  <IRanges>  <Rle> 
+# [1]     chr1 [200, 300]    *
+# -------
+# seqinfo: 1 sequence from an unspecified genome; no seqlengths
+```
+
+#### Converting Data Frames to GRanges
+
+```r
+# Create sample genomic data frame
+df <- data.frame(
+    seqnames = c("chrX", "chrX", "chrX", "chrY", "chrY"),
+    start = c(50, 130, 153, 30, 50),
+    end = c(120, 140, 154, 40, 55),
+    strand = c("+", "+", "+", "*", "-"),
+    score = 1:5,
+    GC = rep(0.25, 5)
+)
+
+# Convert to GRanges
+(myGR <- as(df, "GRanges"))
+# GRanges object with 5 ranges and 2 metadata columns:
+#       seqnames    ranges strand |     score        GC
+#          <Rle> <IRanges>  <Rle> | <integer> <numeric>
+#   [1]     chrX [ 50, 120]      + |         1      0.25
+#   [2]     chrX [130, 140]      + |         2      0.25
+#   [3]     chrX [153, 154]      + |         3      0.25
+#   [4]     chrY [ 30,  40]      * |         4      0.25
+#   [5]     chrY [ 50,  55]      - |         5      0.25
+```
+
+### Working with Transcript Databases
+
+GenomicFeatures uses transcript database (TxDb) objects to store metadata, manage genomic locations and relationships between features and identifiers.
+
+```r
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+(hg <- TxDb.Hsapiens.UCSC.hg38.knownGene)
+# TxDb object:
+# # Db type: TxDb
+# # Supporting package: GenomicFeatures
+# # Data source: UCSC
+# # Genome: hg38
+# # Organism: Homo sapiens
+# # Resource URL: http://genome.ucsc.edu/
+# # Type of Gene ID: Entrez Gene ID
+# # transcript_nrow: 197782
+# # exon_nrow: 581036
+# # cds_nrow: 293052
+
+# Filter for chromosome X
+seqlevels(hg) <- c("chrX")
+
+# Get all transcripts
+transcripts(hg, columns = c("tx_id", "tx_name"))
+
+# Get exons for specific transcript
+exons(hg, columns = c("tx_id", "exon_id"), 
+      filter = list(tx_id = "179161"))
+```
+
+#### Example: Working with the ABCD1 Gene
+
+The ABCD1 gene (located at chrX ~153.70 Mbp) encodes a protein relevant for the well functioning of brain and lung cells in mammals.
+
+```r
+# Get exons grouped by transcript
+exonsBytx <- exonsBy(hg, by = "tx")
+
+# Get ABCD1 transcript
+abcd1_179161 <- exonsBytx[["179161"]]
+
+# View exon widths
+width(abcd1_179161)
+# [1] 1299 181 143 169 95 146 146 85 126 1274
+```
+
+### Working with Collections (GRangesList)
+
+GRangesList can store groups of related genomic intervals. Common use cases include:
+- Transcripts by gene
+- Exons by transcripts
+- Read alignments
+- Sliding windows
+
+```r
+# Create sliding windows
+slidingWindows(hg_chrXg, width = 20000, step = 10000)
+# GRangesList object of length 983:
+# [[1]]
+# GRanges object with 2 ranges and 0 metadata columns:
+#     seqnames    ranges strand
+#        <Rle> <IRanges>  <Rle>
+# [1]     chrX [276322, 296321]      +
+# [2]     chrX [286322, 303356]      +
+#
+# [[2]]
+# GRanges object with 3 ranges and 0 metadata columns:
+#     seqnames    ranges strand
+# [1]     chrX [624344, 644343]      +
+# [2]     chrX [634344, 654343]      +
+# [3]     chrX [644344, 659411]      +
+```
+
+### Finding Overlaps
+
+Three main functions handle overlap operations between GRanges or GRangesList objects:
+
+```r
+# Count overlaps between regions
+countOverlaps(query, subject)  # Returns integer vector
+
+# Find detailed overlap information
+findOverlaps(query, subject)   # Returns Hits object
+
+# Get subset of ranges that overlap
+subsetByOverlaps(query, subject)  # Returns GRangesList
+```
+
+Note that overlaps can be either complete or partial, and the `query` and `subject` arguments must be either GRanges or GRangesList objects.
+
+---
+
 ## **Working with FASTQ Files**
 
 ### **Understanding FASTQ Files**
